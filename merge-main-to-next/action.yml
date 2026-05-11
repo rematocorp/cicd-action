@@ -24,9 +24,7 @@ inputs:
   version-conflict-files:
     description: 'Newline-separated list of package.json-style files whose "version" line is safe to auto-resolve to HEAD. Empty disables auto-resolution.'
     required: false
-    default: |
-      frontend/package.json
-      backend/package.json
+    default: ''
   git-user-name:
     description: 'Git author name for merge commits. Required.'
     required: true

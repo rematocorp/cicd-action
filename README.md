@@ -152,7 +152,7 @@ That's the whole integration.
 | `main-branch` | `main` | no |
 | `develop-branch` | `develop` | no |
 | `release-branch-prefix` | `release/` | no |
-| `version-conflict-files` | `frontend/package.json`<br>`backend/package.json` (newline-separated) | no |
+| `version-conflict-files` | — (empty = no auto-resolution) | no |
 | `git-user-name` | — | **yes** |
 | `git-user-email` | — | **yes** |
 
