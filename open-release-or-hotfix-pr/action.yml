@@ -1,0 +1,47 @@
+name: 'Open release/hotfix PR'
+description: 'On branch create, open a PR to the base branch when the branch matches one of the configured prefixes. Optionally write the version carried in the branch name into configured package.json files first.'
+branding:
+  icon: 'git-pull-request'
+  color: 'blue'
+
+inputs:
+  github-token:
+    description: 'Token with pull-requests:write (and contents:write if version-write-files is set). To make the newly opened PR trigger downstream workflows, pass a PAT — PRs opened by GITHUB_TOKEN do not trigger workflows by design. Defaults to GITHUB_TOKEN.'
+    required: false
+    default: ${{ github.token }}
+  branch-prefixes:
+    description: 'Newline-separated list of branch prefixes (including trailing slash). A newly created branch must start with one of these to open a PR.'
+    required: false
+    default: |
+      release/
+      hotfix/
+  base-branch:
+    description: 'PR target (base) branch.'
+    required: false
+    default: 'main'
+  version-write-files:
+    description: 'Newline-separated package.json paths whose top-level "version" field should be set to the version carried in the branch name (suffix after the matched prefix, with any leading "v" stripped). Empty disables version writing.'
+    required: false
+    default: ''
+  git-user-name:
+    description: 'Git author name for the version commit. Required when version-write-files is set (the action commits and pushes the change back to the new branch).'
+    required: false
+    default: ''
+  git-user-email:
+    description: 'Git author email for the version commit. Required when version-write-files is set.'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Open PR for prefixed branch
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        INPUT_BRANCH_PREFIXES: ${{ inputs.branch-prefixes }}
+        INPUT_BASE_BRANCH: ${{ inputs.base-branch }}
+        INPUT_VERSION_WRITE_FILES: ${{ inputs.version-write-files }}
+        INPUT_GIT_USER_NAME: ${{ inputs.git-user-name }}
+        INPUT_GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+      run: bash "${{ github.action_path }}/../scripts/open_prefixed_pr.sh"

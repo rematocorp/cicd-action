@@ -1,0 +1,5 @@
+/docs/
+.idea
+__pycache__/
+.pytest_cache/
+*.pyc

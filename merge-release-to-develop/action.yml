@@ -1,0 +1,42 @@
+name: 'Automerge release → develop'
+description: 'On push to a release/* branch, merge it into develop — but only when a release/*->main PR is already open and no release/*->develop PR exists yet.'
+branding:
+  icon: 'git-merge'
+  color: 'blue'
+
+inputs:
+  github-token:
+    description: 'Token with contents:write and pull-requests:write. Defaults to GITHUB_TOKEN.'
+    required: false
+    default: ${{ github.token }}
+  main-branch:
+    description: 'Production branch name. Used as the gate: the action only runs when an open PR exists from the pushed release/* branch to this branch. Set this if your production branch is not named "main".'
+    required: false
+    default: 'main'
+  develop-branch:
+    description: 'The development branch name.'
+    required: false
+    default: 'develop'
+  release-branch-prefix:
+    description: 'Prefix identifying release branches (informational; the action reads the pushed branch from $GITHUB_REF_NAME).'
+    required: false
+    default: 'release/'
+  git-user-name:
+    description: 'Git author name for merge commits. Required.'
+    required: true
+  git-user-email:
+    description: 'Git author email for merge commits. Required.'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Merge release branch into develop
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        INPUT_MAIN_BRANCH: ${{ inputs.main-branch }}
+        INPUT_DEVELOP_BRANCH: ${{ inputs.develop-branch }}
+        INPUT_GIT_USER_NAME: ${{ inputs.git-user-name }}
+        INPUT_GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+      run: bash "${{ github.action_path }}/../scripts/automerge_release.sh"
