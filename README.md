@@ -73,7 +73,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: rematocorp/cicd-action/merge-main-to-next@v1
+      - uses: rematocorp/cicd-action/merge-main-to-next@v2
         with:
           git-user-name: my-org-bot
           git-user-email: bot@example.com
@@ -99,7 +99,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: rematocorp/cicd-action/merge-release-to-develop@v1
+      - uses: rematocorp/cicd-action/merge-release-to-develop@v2
         with:
           git-user-name: my-org-bot
           git-user-email: bot@example.com
@@ -127,7 +127,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4   # only needed when version-write-files is set
-      - uses: rematocorp/cicd-action/open-release-or-hotfix-pr@v1
+      - uses: rematocorp/cicd-action/open-release-or-hotfix-pr@v2
         with:
           version-write-files: |
             frontend/package.json
@@ -170,7 +170,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: rematocorp/cicd-action/create-release-branch@v1
+      - uses: rematocorp/cicd-action/create-release-branch@v2
         with:
           bump-type: ${{ inputs.bump-type }}
           git-user-name: my-org-bot
@@ -298,23 +298,23 @@ Practically, this lets release-version bumps from `main` flow into the open `rel
 Recommended: pin the floating major tag.
 
 ```yaml
-uses: rematocorp/cicd-action/merge-main-to-next@v1
+uses: rematocorp/cicd-action/merge-main-to-next@v2
 ```
 
 For reproducibility, pin an exact version:
 
 ```yaml
-uses: rematocorp/cicd-action/merge-main-to-next@v1.0.0
+uses: rematocorp/cicd-action/merge-main-to-next@v2.0.0
 ```
 
-The major tag (`v1`) is updated on each `v1.x.y` release.
+The major tag (`v2`) is updated on each `v2.x.y` release.
 
 ## Customizing defaults
 
 The defaults (`main`, `develop`, `release/`) assume a `main → release/v* → develop` branching model. If your conventions differ, override the relevant inputs. The git identity inputs are always required and have no built-in fallback.
 
 ```yaml
-uses: rematocorp/cicd-action/merge-main-to-next@v1
+uses: rematocorp/cicd-action/merge-main-to-next@v2
 with:
   main-branch: master
   develop-branch: dev
