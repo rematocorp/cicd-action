@@ -252,8 +252,9 @@ PR title is derived from the matched prefix: e.g. `release/v1.2.3` → `Release/
 The action refuses to run when:
 - `bump-type` is set to a value other than `major` or `minor` (omitting it is fine — it defaults to `minor`),
 - any open PR exists from `release/*` to `develop-branch` or from `main-branch` to `develop-branch` (stale forward-merge PR from a prior automerge conflict — resolve it first),
-- `develop-branch` has no commits ahead of `main-branch` (nothing to release),
 - the merge of `develop-branch` into the new release branch conflicts (no branch is pushed — resolve the divergence by hand and re-run).
+
+If `develop-branch` has no commits ahead of `main-branch`, the action still proceeds — the merge becomes a no-op ("Already up to date.") and a clean release branch matching `main` is pushed. This is intentional so empty / "just-in-case" releases work.
 
 Version discovery is strict: only branches matching `${release-branch-prefix}vMAJOR.MINOR.PATCH` are considered. Lenient variants (`release/1.2.3` without the `v`, prerelease tags like `release/v1.2.3-rc1`) are ignored. If no branch matches, `major` yields `v1.0.0` and `minor` yields `v0.1.0`.
 

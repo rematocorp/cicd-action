@@ -68,17 +68,13 @@ next_version=$(
 new_branch="${RELEASE_PREFIX}v${next_version}"
 echo "Next release branch: ${new_branch}"
 
-# 5. Require develop ahead of main.
-ahead=$(git rev-list --count "origin/${MAIN_BRANCH}..origin/${DEVELOP_BRANCH}")
-if [[ "${ahead}" -eq 0 ]]; then
-  echo "Refusing to cut release: ${DEVELOP_BRANCH} is not ahead of ${MAIN_BRANCH} — nothing to release." >&2
-  exit 1
-fi
-
-# 6. Create branch from main.
+# 5. Create branch from main.
 git checkout -B "${new_branch}" "origin/${MAIN_BRANCH}"
 
-# 7. Merge develop in. On conflict, abort and fail without pushing.
+# 6. Merge develop in. If develop has nothing ahead of main, this is a no-op
+#    ("Already up to date.") and we still push a clean release branch — that's
+#    intentional, so an empty release is allowed. On a real conflict, abort
+#    and fail without pushing.
 if ! git merge --no-ff "origin/${DEVELOP_BRANCH}" \
     -m "Merge ${DEVELOP_BRANCH} into ${new_branch}"; then
   echo "Merge conflict cutting ${new_branch}; aborting without push." >&2
@@ -86,7 +82,7 @@ if ! git merge --no-ff "origin/${DEVELOP_BRANCH}" \
   exit 1
 fi
 
-# 8. Push.
+# 7. Push.
 if ! git push origin "${new_branch}"; then
   echo "Push of ${new_branch} failed." >&2
   exit 1
