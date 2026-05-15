@@ -1,0 +1,48 @@
+name: 'Create release branch'
+description: 'Cut a new release/vX.Y.Z branch from main, merge develop into it, and push. Triggered by the consumer workflow (typically workflow_dispatch or repository_dispatch). Refuses to run when a stale forward-merge PR is open or when develop is not ahead of main.'
+branding:
+  icon: 'git-branch'
+  color: 'blue'
+
+inputs:
+  github-token:
+    description: 'Token with contents:write (push the new branch) and pull-requests:read (check for stale forward-merge PRs). Pass a PAT to make the pushed branch trigger downstream workflows (e.g. chain into open-release-or-hotfix-pr). Defaults to GITHUB_TOKEN.'
+    required: false
+    default: ${{ github.token }}
+  bump-type:
+    description: 'Which part of the version to bump. Must be "major" or "minor". Defaults to "minor" so an API caller can omit it for routine releases.'
+    required: false
+    default: 'minor'
+  main-branch:
+    description: 'The production branch name. The new release branch is cut from this branch.'
+    required: false
+    default: 'main'
+  develop-branch:
+    description: 'The development branch name. Merged into the new release branch after cutting.'
+    required: false
+    default: 'develop'
+  release-branch-prefix:
+    description: 'Prefix identifying release branches. Used both to discover the latest existing release/vX.Y.Z (for the bump calculation) and to name the new branch.'
+    required: false
+    default: 'release/'
+  git-user-name:
+    description: 'Git author name for the develop-merge commit on the new branch. Required.'
+    required: true
+  git-user-email:
+    description: 'Git author email for the develop-merge commit. Required.'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create release branch
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        INPUT_BUMP_TYPE: ${{ inputs.bump-type }}
+        INPUT_MAIN_BRANCH: ${{ inputs.main-branch }}
+        INPUT_DEVELOP_BRANCH: ${{ inputs.develop-branch }}
+        INPUT_RELEASE_BRANCH_PREFIX: ${{ inputs.release-branch-prefix }}
+        INPUT_GIT_USER_NAME: ${{ inputs.git-user-name }}
+        INPUT_GIT_USER_EMAIL: ${{ inputs.git-user-email }}
+      run: bash "${{ github.action_path }}/../scripts/create_release_branch.sh"

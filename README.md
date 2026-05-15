@@ -5,6 +5,7 @@ Composite GitHub Actions that automate the forward-merge loop and PR plumbing fo
 - **`merge-main-to-next`** — when `main` is updated (typically by a hotfix or a release merge), forward-merge `main` into the currently open `release/*` branch, or into `develop` if no release is in flight.
 - **`merge-release-to-develop`** — when a `release/*` branch is updated and has an open PR into `main`, forward-merge that release branch into `develop` so develop stays current with staging fixes.
 - **`open-release-or-hotfix-pr`** — when a `release/*` or `hotfix/*` branch is created, optionally write the version carried in the branch name (e.g. `release/v1.2.3` → `1.2.3`) into configured `package.json` files, then open a PR from that branch to `main`. Prefixes and target are configurable.
+- **`create-release-branch`** — triggered via the GitHub API (`workflow_dispatch` or `repository_dispatch`), optionally with a `bump-type` of `major` (defaults to `minor`); computes the next version from existing `release/v*` branches, cuts a new `release/vX.Y.Z` branch from `main`, merges `develop` into it, and pushes.
 
 On any merge conflict the merge actions open a manual-resolution PR rather than guessing — except for the narrow case of a single `"version"`-line conflict in configured `package.json` files, which is auto-resolved to keep HEAD.
 
@@ -44,6 +45,7 @@ What this repo automates:
 | A `release/*` or `hotfix/*` branch is created | (Optionally) the version from the branch name is written into configured `package.json` files; then a PR from that branch to `main` is opened | `open-release-or-hotfix-pr` |
 | `main` receives a push (hotfix or release-ship) | `main` is merged into the open `release/v*` (or `develop` if no release is in flight) | `merge-main-to-next` |
 | `release/v*` receives a push (with a PR to `main` open) | `release/v*` is merged into `develop` | `merge-release-to-develop` |
+| An external system calls the GitHub API (workflow_dispatch / repository_dispatch), optionally specifying `bump-type: major` (defaults to `minor`) | A new `release/vX.Y.Z` branch is cut from `main` with the next version, `develop` is merged in, and the branch is pushed | `create-release-branch` |
 
 Without automation, every push to `main` and every push to `release/*` needs a human to remember to forward-merge, and every release/hotfix branch needs someone to open the PR. These actions close those loops.
 
@@ -140,6 +142,55 @@ If you don't want the version write, drop `version-write-files`, the checkout st
 
 > **Note on the token:** PRs opened with the default `GITHUB_TOKEN` do *not* trigger downstream workflows (e.g. CI on the new PR). To get CI to run on the auto-opened PR, pass a PAT from a bot account via the `github-token` input.
 
+### `.github/workflows/create-release-branch.yml`
+
+```yaml
+name: Create release branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump-type:
+        description: 'major | minor (defaults to minor)'
+        required: false
+        default: 'minor'
+        type: choice
+        options:
+          - minor
+          - major
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: rematocorp/cicd-action/create-release-branch@v1
+        with:
+          bump-type: ${{ inputs.bump-type }}
+          git-user-name: my-org-bot
+          git-user-email: bot@example.com
+```
+
+Trigger this workflow over the GitHub REST API. `bump-type` is optional and defaults to `minor`:
+
+```
+POST /repos/{owner}/{repo}/actions/workflows/create-release-branch.yml/dispatches
+Authorization: Bearer <token>
+
+{ "ref": "main" }                                # minor release (default)
+{ "ref": "main", "inputs": { "bump-type": "major" } }   # major release
+```
+
+`repository_dispatch` works equally well — just map the payload field into the action's `bump-type` input.
+
+> **Note on the token:** if you want the new branch to auto-fire `open-release-or-hotfix-pr` (so the `release/v*→main` PR is opened for you), pass a PAT from a bot account via the `github-token` input. Branches pushed by the default `GITHUB_TOKEN` do not trigger workflows.
+
 That's the whole integration.
 
 ## Inputs
@@ -186,15 +237,37 @@ PR title is derived from the matched prefix: e.g. `release/v1.2.3` → `Release/
 
 `git-user-name` and `git-user-email` are intentionally required — the action makes commits on your behalf and there's no sensible cross-org default.
 
+### `create-release-branch`
+
+| Input | Default | Required |
+|---|---|---|
+| `github-token` | `${{ github.token }}` | no |
+| `bump-type` | `minor` | no (must be `major` or `minor`) |
+| `main-branch` | `main` | no |
+| `develop-branch` | `develop` | no |
+| `release-branch-prefix` | `release/` | no |
+| `git-user-name` | — | **yes** |
+| `git-user-email` | — | **yes** |
+
+The action refuses to run when:
+- `bump-type` is set to a value other than `major` or `minor` (omitting it is fine — it defaults to `minor`),
+- any open PR exists from `release/*` to `develop-branch` or from `main-branch` to `develop-branch` (stale forward-merge PR from a prior automerge conflict — resolve it first),
+- `develop-branch` has no commits ahead of `main-branch` (nothing to release),
+- the merge of `develop-branch` into the new release branch conflicts (no branch is pushed — resolve the divergence by hand and re-run).
+
+Version discovery is strict: only branches matching `${release-branch-prefix}vMAJOR.MINOR.PATCH` are considered. Lenient variants (`release/1.2.3` without the `v`, prerelease tags like `release/v1.2.3-rc1`) are ignored. If no branch matches, `major` yields `v1.0.0` and `minor` yields `v0.1.0`.
+
 ## Required permissions
 
-Both actions need:
+The merge and PR-opening actions (`merge-main-to-next`, `merge-release-to-develop`, `open-release-or-hotfix-pr`) need:
 
 ```yaml
 permissions:
-  contents: write       # push merge commits
-  pull-requests: write  # read PR state, open manual-resolution PRs
+  contents: write       # push merge commits / new branches
+  pull-requests: write  # read PR state, open manual-resolution and release/hotfix PRs
 ```
+
+`create-release-branch` needs the same `contents: write` (to push the new branch) but only `pull-requests: read` — it queries open PRs to gate on stale forward-merges, but never opens one itself.
 
 If you use a custom `github-token` (e.g. a PAT from a bot account), it needs the same scopes.
 
