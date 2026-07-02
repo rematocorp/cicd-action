@@ -8,7 +8,8 @@
 #
 # Required env (always):
 #   GH_TOKEN              — for gh CLI
-#   GITHUB_REF_NAME       — created branch name (set by GitHub Actions)
+#   INPUT_BRANCH          — created branch name (falls back to GITHUB_REF_NAME,
+#                           which is intermittently missing on create-event runs)
 #   GITHUB_REPOSITORY     — "owner/repo" (set by GitHub Actions)
 #   INPUT_BRANCH_PREFIXES — newline-separated prefix list (e.g. "release/\nhotfix/")
 #   INPUT_BASE_BRANCH     — PR base branch
@@ -22,7 +23,11 @@ set -euo pipefail
 
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-BRANCH="${GITHUB_REF_NAME:?GITHUB_REF_NAME not set}"
+BRANCH="${INPUT_BRANCH:-${GITHUB_REF_NAME:-}}"
+if [[ -z "$BRANCH" ]]; then
+  echo "Branch name not available: neither INPUT_BRANCH nor GITHUB_REF_NAME is set." >&2
+  exit 1
+fi
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY not set}"
 BASE="${INPUT_BASE_BRANCH:?INPUT_BASE_BRANCH not set}"
 
@@ -85,7 +90,9 @@ if [[ ${#version_files[@]} -gt 0 ]]; then
     echo "Setting version $version produced no changes; skipping commit."
   else
     git commit -m "chore: set version to $version"
-    git push origin "$BRANCH"
+    # HEAD refspec so the push also works from a detached HEAD (checkout falls
+    # back to a bare SHA when the run-level ref is missing).
+    git push origin "HEAD:refs/heads/$BRANCH"
   fi
 fi
 
