@@ -9,6 +9,10 @@ inputs:
     description: 'Token with pull-requests:write (and contents:write if version-write-files is set). To make the newly opened PR trigger downstream workflows, pass a PAT — PRs opened by GITHUB_TOKEN do not trigger workflows by design. Defaults to GITHUB_TOKEN.'
     required: false
     default: ${{ github.token }}
+  branch:
+    description: 'The newly created branch name. Defaults to the create-event payload ref, falling back to the run-level ref name — the run-level ref is intermittently missing on create-event runs, while the payload ref is always present.'
+    required: false
+    default: ${{ github.event.ref || github.ref_name }}
   branch-prefixes:
     description: 'Newline-separated list of branch prefixes (including trailing slash). A newly created branch must start with one of these to open a PR.'
     required: false
@@ -39,6 +43,7 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+        INPUT_BRANCH: ${{ inputs.branch }}
         INPUT_BRANCH_PREFIXES: ${{ inputs.branch-prefixes }}
         INPUT_BASE_BRANCH: ${{ inputs.base-branch }}
         INPUT_VERSION_WRITE_FILES: ${{ inputs.version-write-files }}
